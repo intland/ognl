@@ -20,12 +20,12 @@ package ognl.internal;
 
 import ognl.internal.entry.CacheEntryFactory;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class HashMapCache<K, V> implements Cache<K, V> {
 
-    private final Map<K, V> cache = new HashMap<>(512);
+    private final Map<K, V> cache = new ConcurrentHashMap<>(512);
 
     private final CacheEntryFactory<K, V> cacheEntryFactory;
 
@@ -34,27 +34,17 @@ public class HashMapCache<K, V> implements Cache<K, V> {
     }
 
     public void clear() {
-        synchronized (cache) {
-            cache.clear();
-        }
+        cache.clear();
     }
 
     public int getSize() {
-        synchronized (cache) {
-            return cache.size();
-        }
+        return cache.size();
     }
 
     public V get(K key) throws CacheException {
         V v = cache.get(key);
         if (shouldCreate(cacheEntryFactory, v)) {
-            synchronized (cache) {
-                v = cache.get(key);
-                if (v != null) {
-                    return v;
-                }
-                return put(key, cacheEntryFactory.create(key));
-            }
+            return cache.computeIfAbsent(key, cacheEntryFactory::create);
         }
         return v;
     }
@@ -64,15 +54,12 @@ public class HashMapCache<K, V> implements Cache<K, V> {
     }
 
     public V put(K key, V value) {
-        synchronized (cache) {
-            cache.put(key, value);
-            return value;
-        }
+        cache.put(key, value);
+        return value;
     }
 
-
     public boolean contains(K key) {
-        return this.cache.containsKey(key);
+        return cache.containsKey(key);
     }
 
 }
